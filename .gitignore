@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Data/artifacts (we will decide later what to keep)
+data/*.npy
+data/*.parquet
+artifacts/*.index
+artifacts/*.pkl
+artifacts/*.bin
+
+# Logs
+*.log
