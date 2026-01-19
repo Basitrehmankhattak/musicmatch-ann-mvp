@@ -217,3 +217,6 @@ def search(req: SearchRequest):
         latency_ms=float(latency_ms),
         mode=req.mode,
     )
+@app.get("/")
+def root():
+    return {"message": "MusicMatch ANN API is running"}
