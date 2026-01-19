@@ -1,4 +1,6 @@
+# =========================
 # Python
+# =========================
 __pycache__/
 *.pyc
 *.pyo
@@ -7,24 +9,35 @@ __pycache__/
 dist/
 build/
 
+# =========================
 # Virtual environments
+# =========================
 .venv/
 venv/
 
+# =========================
 # Jupyter
+# =========================
 .ipynb_checkpoints/
 
+# =========================
 # OS / editor
+# =========================
 .DS_Store
 .vscode/
 
-# Data/artifacts (we will decide later what to keep)
-data/*.npy
-data/*.parquet
-artifacts/*.index
-artifacts/*.pkl
-artifacts/*.bin
+# =========================
+# Data & ML Artifacts
+# =========================
+backend/data/
+backend/artifacts/
+data/
+artifacts/
+deploy_assets/
+musicmatch_assets.tar.gz
 
+# =========================
 # Logs
+# =========================
 *.log
 data/spotify.csv
