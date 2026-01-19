@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from pathlib import Path as _Path
 
 # main.py is in: <root>/backend/app/main.py
-ROOT_DIR = _Path(__file__).resolve().parents[1]  # /app in Railway container
+ROOT_DIR = _Path(__file__).resolve().parents[2]  # <repo-root>
 
 X_PATH = str(ROOT_DIR / "data" / "X.npy")
 META_PATH = str(ROOT_DIR / "data" / "meta.parquet")
