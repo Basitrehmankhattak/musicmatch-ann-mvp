@@ -27,3 +27,4 @@ artifacts/*.bin
 
 # Logs
 *.log
+data/spotify.csv
