@@ -7,7 +7,7 @@ import os
 
 # Prefer env var, fall back to localhost.
 # In deployment (Streamlit Cloud), we will set BACKEND_URL as a secret or env var.
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = "https://musicmatch-ann-mvp-production.up.railway.app"
 
 st.set_page_config(page_title="MusicMatch ANN", layout="wide")
 
