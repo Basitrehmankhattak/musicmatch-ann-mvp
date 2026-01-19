@@ -1,60 +1,118 @@
 import os
 import tarfile
-import shutil
-from pathlib import Path
 import urllib.request
+from pathlib import Path
 
-# In Railway container: this file is /app/app/bootstrap.py so parents[1] = /app
-ROOT_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT_DIR / "data"
-ART_DIR = ROOT_DIR / "artifacts"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-ART_DIR.mkdir(parents=True, exist_ok=True)
+from app.paths import (
+    DATA_DIR,
+    ART_DIR,
+    X_PATH,
+    META_PATH,
+    FEATURES_PATH,
+    SCALER_PATH,
+    HNSW_PATH,
+    PQ_PATH,
+    IVFPQ_PATH,
+)
 
-ASSET_FILE = ROOT_DIR / "musicmatch_assets.tar.gz"
-EXTRACT_DIR = ROOT_DIR / "deploy_assets"  # created by your tar
+REQUIRED_FILES = [
+    X_PATH,
+    META_PATH,
+    FEATURES_PATH,
+    SCALER_PATH,
+    HNSW_PATH,
+    PQ_PATH,
+    IVFPQ_PATH,
+]
+
+
+def _assets_present() -> bool:
+    return all(p.exists() for p in REQUIRED_FILES)
+
+
+def _pick_extracted_base(extract_dir: Path) -> Path:
+    """
+    Support multiple tar structures:
+
+    Case A (flat):
+      extract_dir/X.npy
+
+    Case B (nested):
+      extract_dir/<one-folder>/X.npy
+      extract_dir/deploy_assets/X.npy
+
+    We choose:
+    - extract_dir if X.npy exists there
+    - else, the first subdir that contains X.npy
+    """
+    if (extract_dir / "X.npy").exists():
+        return extract_dir
+
+    # Look for a subfolder that contains X.npy
+    for child in extract_dir.iterdir():
+        if child.is_dir() and (child / "X.npy").exists():
+            return child
+
+    # If not found, we will fail later with a clear error
+    return extract_dir
+
 
 def ensure_assets():
-    print(f"ROOT_DIR: {ROOT_DIR}")
-    print(f"DATA_DIR: {DATA_DIR}")
-    print(f"ART_DIR: {ART_DIR}")
-    asset_url = os.environ.get("ASSET_URL")
+    print("🚀 Bootstrap: ensuring assets...")
+    print("DATA_DIR:", DATA_DIR)
+    print("ART_DIR:", ART_DIR)
 
-    # If already present, skip
-    if (DATA_DIR / "X.npy").exists() and (DATA_DIR / "meta.parquet").exists() and (ART_DIR / "hnsw.index").exists():
-        print("Assets already present. Skipping download.")
+    # Ensure folders exist
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    ART_DIR.mkdir(parents=True, exist_ok=True)
+
+    if _assets_present():
+        print("✅ Assets already present. Skipping download.")
         return
 
+    asset_url = os.environ.get("ASSET_URL")
     if not asset_url:
-        raise RuntimeError("ASSET_URL environment variable not set")
+        missing = [str(p) for p in REQUIRED_FILES if not p.exists()]
+        raise RuntimeError(
+            "ASSET_URL not set and assets missing:\n" + "\n".join(missing)
+        )
 
-    print(f"Downloading assets from {asset_url} ...")
-    urllib.request.urlretrieve(asset_url, ASSET_FILE)
+    tmp_dir = Path("/tmp/musicmatch_assets")
+    tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Extracting assets...")
-    with tarfile.open(ASSET_FILE, "r:gz") as tar:
-        tar.extractall(ROOT_DIR)
+    tar_path = tmp_dir / "musicmatch_assets.tar.gz"
+    extract_dir = tmp_dir / "extracted"
+    extract_dir.mkdir(parents=True, exist_ok=True)
 
-    # If files extracted into deploy_assets/, move them into expected locations
-    if EXTRACT_DIR.exists():
-        print("Listing extracted files:", [p.name for p in EXTRACT_DIR.iterdir()])
-        print("Moving extracted files into /data and /artifacts ...")
-        for f in EXTRACT_DIR.iterdir():
-            if f.name in ("X.npy", "meta.parquet"):
-                shutil.copy2(f, DATA_DIR / f.name)
-            elif f.name.endswith(".index") or f.name in ("scaler.pkl", "features.json"):
-                shutil.copy2(f, ART_DIR / f.name)
+    print("⬇️ Downloading assets from:", asset_url)
+    urllib.request.urlretrieve(asset_url, tar_path)
 
-        print("Cleaning up extracted folder...")
-        # optional cleanup
-        # shutil.rmtree(EXTRACT_DIR, ignore_errors=True)
+    print("📦 Extracting assets to:", extract_dir)
+    with tarfile.open(tar_path, "r:gz") as tar:
+        tar.extractall(extract_dir)
 
-    # Final check
-    missing = []
-    for need in [DATA_DIR/"X.npy", DATA_DIR/"meta.parquet", ART_DIR/"hnsw.index", ART_DIR/"faiss_pq.index", ART_DIR/"faiss_ivfpq.index"]:
-        if not need.exists():
-            missing.append(str(need))
-    if missing:
-        raise RuntimeError(f"Assets still missing after extraction: {missing}")
+    base = _pick_extracted_base(extract_dir)
+    print("📁 Detected extracted base:", base)
+
+    # Move/copy files into their final locations
+    def copy_file(src: Path, dst: Path):
+        if not src.exists():
+            raise RuntimeError(f"Missing expected file in tar: {src}")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        # copy2 preserves metadata; also works across filesystems
+        import shutil
+        shutil.copy2(src, dst)
+
+    copy_file(base / "X.npy", X_PATH)
+    copy_file(base / "meta.parquet", META_PATH)
+    copy_file(base / "features.json", FEATURES_PATH)
+    copy_file(base / "scaler.pkl", SCALER_PATH)
+    copy_file(base / "hnsw.index", HNSW_PATH)
+    copy_file(base / "faiss_pq.index", PQ_PATH)
+    copy_file(base / "faiss_ivfpq.index", IVFPQ_PATH)
+
+    if not _assets_present():
+        missing = [str(p) for p in REQUIRED_FILES if not p.exists()]
+        raise RuntimeError("❌ Assets still missing after extraction:\n" + "\n".join(missing))
 
     print("✅ Assets ready.")
