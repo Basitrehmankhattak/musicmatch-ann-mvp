@@ -15,6 +15,9 @@ ASSET_FILE = ROOT_DIR / "musicmatch_assets.tar.gz"
 EXTRACT_DIR = ROOT_DIR / "deploy_assets"  # created by your tar
 
 def ensure_assets():
+    print(f"ROOT_DIR: {ROOT_DIR}")
+    print(f"DATA_DIR: {DATA_DIR}")
+    print(f"ART_DIR: {ART_DIR}")
     asset_url = os.environ.get("ASSET_URL")
 
     # If already present, skip
@@ -34,6 +37,7 @@ def ensure_assets():
 
     # If files extracted into deploy_assets/, move them into expected locations
     if EXTRACT_DIR.exists():
+        print("Listing extracted files:", [p.name for p in EXTRACT_DIR.iterdir()])
         print("Moving extracted files into /data and /artifacts ...")
         for f in EXTRACT_DIR.iterdir():
             if f.name in ("X.npy", "meta.parquet"):

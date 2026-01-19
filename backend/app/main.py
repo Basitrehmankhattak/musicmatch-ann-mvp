@@ -8,6 +8,7 @@ import hnswlib
 import faiss
 
 from fastapi import FastAPI, Query
+from app.bootstrap import ensure_assets
 from pydantic import BaseModel
 
 # Paths (absolute, based on project root)
@@ -71,7 +72,41 @@ class SearchResponse(BaseModel):
 
 @app.on_event("startup")
 def load_resources():
+    # 1) Ensure assets exist (download & extract on Railway)
+    print("🚀 Startup: ensuring assets...")
+    ensure_assets()
+    print("✅ Startup: assets ensured. Loading resources...")
+
     global X, meta, name_norm, hnsw_index, pq_index, ivfpq_index, features, scaler
+
+    # Load vectors and metadata
+    X = np.load(X_PATH).astype(np.float32)
+    meta = pd.read_parquet(META_PATH)
+
+    # Normalize name for search
+    name_norm = meta["name"].fillna("").astype(str).str.lower()
+
+    # Load scaler (kept for future, not mandatory for query-by-index)
+    scaler = joblib.load(SCALER_PATH)
+
+    # Feature list for future explainability
+    try:
+        import json
+        with open(FEATURES_PATH, "r", encoding="utf-8") as f:
+            features = json.load(f)["feature_cols"]
+    except Exception:
+        features = []
+
+    # Load HNSW
+    dim = X.shape[1]
+    hnsw_index = hnswlib.Index(space="l2", dim=dim)
+    hnsw_index.load_index(HNSW_PATH, max_elements=X.shape[0])
+
+    # Load FAISS
+    pq_index = faiss.read_index(PQ_PATH)
+    ivfpq_index = faiss.read_index(IVFPQ_PATH)
+
+    app.state.ready = True
 
     # Load vectors and metadata
     X = np.load(X_PATH).astype(np.float32)
