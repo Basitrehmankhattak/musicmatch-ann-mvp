@@ -2,21 +2,19 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps (minimal)
+# minimal system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for caching
+# install python deps
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy app + artifacts/data needed at runtime
+# copy only backend code (assets will be downloaded at runtime)
 COPY backend/app /app/app
-COPY data /app/data
-COPY artifacts /app/artifacts
 
-# Railway provides PORT env var
+# Railway provides PORT
 ENV PORT=8000
 EXPOSE 8000
 
